@@ -16,9 +16,9 @@ class CGCNNConfig(PydanticBaseSettings):
     """Hyperparameter schema for jarvisdgl.models.cgcnn."""
 
     name: Literal["cgcnn"]
-    conv_layers: int = 1
+    conv_layers: int = 4
     atom_input_features: int = 92
-    edge_features: int = 32
+    edge_features: int = 128
     fc_features: int = 128
     output_features: int = 1
 
