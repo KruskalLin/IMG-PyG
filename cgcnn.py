@@ -19,7 +19,7 @@ class CGCNNConfig(PydanticBaseSettings):
     conv_layers: int = 4
     atom_input_features: int = 92
     edge_features: int = 128
-    fc_features: int = 128
+    fc_features: int = 256
     output_features: int = 1
 
     # if link == log, apply `exp` to final outputs
