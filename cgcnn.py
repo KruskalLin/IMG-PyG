@@ -16,10 +16,10 @@ class CGCNNConfig(PydanticBaseSettings):
     """Hyperparameter schema for jarvisdgl.models.cgcnn."""
 
     name: Literal["cgcnn"]
-    conv_layers: int = 4
+    conv_layers: int = 3
     atom_input_features: int = 92
-    edge_features: int = 128
-    fc_features: int = 256
+    edge_features: int = 80
+    fc_features: int = 128
     output_features: int = 1
 
     # if link == log, apply `exp` to final outputs
@@ -32,6 +32,7 @@ class CGCNNConfig(PydanticBaseSettings):
         """Configure model settings behavior."""
         env_prefix = "jv_model"
 
+        
 class CGCNNConv(MessagePassing):
     """Implements the message passing layer from
     `"Crystal Graph Convolutional Neural Networks for an
@@ -42,7 +43,7 @@ class CGCNNConv(MessagePassing):
     def __init__(self, fc_features, **kwargs):
         super(CGCNNConv, self).__init__(aggr="add", node_dim=0)
         self.fc_features = fc_features
-        self.atoms = nn.Linear(fc_features, fc_features)
+        self.atoms = nn.Sequential(nn.Linear(fc_features, fc_features), nn.Softplus(), nn.Linear(fc_features, fc_features))
         self.bn = nn.BatchNorm1d(fc_features)
 
         self.edge_interaction = nn.Sequential(
@@ -68,7 +69,7 @@ class CGCNNConv(MessagePassing):
             data.edge_index, x=x, edge_attr=edge_attr, size=(x.size(0), x.size(0))
         )
         out = self.atoms(x + self.bn(out))
-        return out, edge_attr
+        return out
 
     def message(self, x_i, x_j, edge_attr):
         """
@@ -101,7 +102,9 @@ class CGCNN(nn.Module):
                 vmax=8.0,
                 bins=config.edge_features,
             ),
-            nn.Linear(config.edge_features, config.fc_features)
+            nn.Linear(config.edge_features, config.fc_features),
+            nn.Softplus(), 
+            nn.Linear(config.fc_features, config.fc_features)
         )
 
         self.conv_layers = nn.ModuleList(
@@ -165,7 +168,7 @@ class CGCNN(nn.Module):
 
         # CGCNN-Conv block: update node features
         for conv_layer in self.conv_layers:
-            node_features, edge_features = conv_layer(data, node_features, edge_features)
+            node_features = conv_layer(data, node_features, edge_features)
 
         # crystal-level readout
         features = scatter(node_features, data.batch, dim=0, reduce="mean")
